@@ -1,0 +1,26 @@
+# Only read by Web Station when the web service uses the Apache backend.
+# Nginx ignores this file; nothing here is required for the app to work.
+
+# Apache has no mapping for .webmanifest, and some browsers want the right type
+# before they will offer to install the app.
+AddType application/manifest+json .webmanifest
+
+# .vrm is a glTF binary. The loader fetches it as an ArrayBuffer and never looks
+# at the type, but labelling it correctly keeps other tools happy.
+AddType model/gltf-binary .vrm
+
+<IfModule mod_headers.c>
+  # The service worker must never be cached, or app updates never arrive.
+  <Files "sw.js">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </Files>
+
+  # Character models are large and never change once chosen.
+  <FilesMatch "\.vrm$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/css application/javascript application/json image/svg+xml
+</IfModule>

@@ -1,0 +1,49 @@
+# Voice only — for when Web Station is already serving the site.
+#
+#   docker compose -f docker-compose.voice-only.yml up -d --build
+#
+# Publishes Piper on port 8080 with the CORS headers a Web Station page needs
+# to call it. In the app, set the Piper server to the full address:
+#
+#   http://<your-nas-ip>:8080/tts
+#
+# Run ./download-voices.sh first, or Piper restarts in a loop with no model.
+#
+# If you would rather Docker serve the site too, use docker-compose.yml instead
+# — that puts both on one port and needs no CORS at all.
+
+services:
+  piper:
+    build: ./piper
+    image: companion-piper:1.7.0
+    container_name: companion-piper
+    restart: unless-stopped
+    environment:
+      # Must match a file in ./voices. Medium is the sweet spot on a J3455;
+      # switch to a "low" voice if replies feel slow.
+      PIPER_VOICE: en_US-amy-medium
+    volumes:
+      - ./voices:/voices:ro
+    mem_limit: 1g
+    cpus: 3.0
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/voices"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    expose:
+      - "5000"
+
+  voice:
+    image: nginx:1.27-alpine
+    container_name: companion-voice
+    restart: unless-stopped
+    depends_on:
+      - piper
+    ports:
+      # The app calls http://<nas-ip>:8080/tts
+      - "8080:80"
+    volumes:
+      - ./nginx/voice-only.conf:/etc/nginx/conf.d/default.conf:ro
+    mem_limit: 64m

@@ -236,7 +236,7 @@ export function renderSettings(view, actions) {
       acceptFile(e.dataTransfer?.files?.[0]);
     });
 
-    const urlInput = h('input', { type: 'text', value: c.url, placeholder: '/characters/her.vrm', spellcheck: 'false' });
+    const urlInput = h('input', { type: 'text', value: c.url, placeholder: 'characters/her.vrm', spellcheck: 'false' });
     const useUrl = h('button', { class: 'btn btn--sm' }, 'Use URL');
     useUrl.addEventListener('click', () => {
       const url = urlInput.value.trim();
@@ -321,7 +321,7 @@ export function renderSettings(view, actions) {
   const piperInput = h('input', {
     type: 'text',
     value: s.piperUrl,
-    placeholder: '/tts',
+    placeholder: 'tts  ·  or  http://nas:8080/tts',
     spellcheck: 'false',
     autocapitalize: 'off',
   });
@@ -444,7 +444,7 @@ export function renderSettings(view, actions) {
           'Speech recognition is not available in this browser — try Chrome, Edge or Safari to talk to her.'),
     h('hr', { style: 'border:0;border-top:1px solid var(--line);margin:16px 0' }),
     field('Piper server', h('div', { class: 'row', style: 'flex-wrap:nowrap' }, piperInput, testPiper),
-      'On the NAS this is just /tts. Leave it blank to use the voices built into this browser instead.'),
+      'Running the all-in-one Docker stack, this is just tts. On Web Station with Piper in its own container, use the full address, e.g. http://192.168.1.20:8080/tts. Leave it blank to use the voices built into this browser instead.'),
     piperStatus,
     h('div', { class: 'field', style: 'margin-top:16px' }, h('label', {}, 'Voice'), voiceList),
     field('Speed', h('div', { class: 'row', style: 'flex-wrap:nowrap' }, rate, rateLabel)),
