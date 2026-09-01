@@ -1,0 +1,22 @@
+{
+  "name": "Companion",
+  "short_name": "Companion",
+  "description": "A personal AI companion you can talk to and play games with, on any device.",
+  "start_url": "./index.html#/talk",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "categories": ["productivity", "games", "utilities"],
+  "icons": [
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Talk", "url": "./index.html#/talk" },
+    { "name": "Play a game", "url": "./index.html#/play" }
+  ]
+}
