@@ -7,7 +7,7 @@ import * as tts from './tts.js';
 import { h, clear, toast, renderMarkdown, autoGrow, icon, ICONS, thinkingDots } from './ui.js';
 
 function systemPrompt() {
-  const { name, persona } = store.get();
+  const { name, persona } = store.activeChar();
   const base = [
     `You are ${name || 'Companion'}, a personal AI companion. The person you are talking to reaches you from their phone, their laptop, wherever they are.`,
     'Talk like a friend who happens to know a lot: warm, direct, curious. Skip the corporate hedging and the bulleted lists unless they actually help.',
@@ -85,7 +85,7 @@ export function renderChat(view, actions) {
   /* ------------------------------------------------------------- rendering */
 
   function bubble(role, content, { error = false } = {}) {
-    const { name } = store.get();
+    const { name } = store.activeChar();
     const isAI = role === 'assistant';
     const text = h('div', { class: 'msg__text' });
     if (content) text.innerHTML = renderMarkdown(content);
@@ -120,7 +120,7 @@ export function renderChat(view, actions) {
   }
 
   function welcome() {
-    const { name } = store.get();
+    const { name } = store.activeChar();
     return h('div', { class: 'empty' },
       h('div', { class: 'empty__emoji' }, '👋'),
       h('h2', {}, hasKey() ? `Hey — I'm ${name || 'Companion'}.` : 'One thing first'),

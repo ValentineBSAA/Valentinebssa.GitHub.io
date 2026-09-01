@@ -22,6 +22,11 @@ so nothing you say is sent anywhere but Anthropic. Every voice offered is female
 It shares the same conversation as Talk, so you can start typing and finish out
 loud.
 
+**Characters.** You can keep as many as you like. Each one has her own name,
+personality, voice and VRM model; the chip above the microphone cycles between
+them without leaving the view, and the conversation carries across. Add them
+under **You → Characters**.
+
 **Play.** Five games where the AI is genuinely the other player:
 
 | Game | What happens |
@@ -32,9 +37,9 @@ loud.
 | **Tic-Tac-Toe** | It plays to win. Works with no key and no connection at all. |
 | **Story Quest** | An improvised choose-your-own adventure that reacts to your choices and lands a real ending. |
 
-**You.** Your key, which model to use, what your companion is called and how it
-talks, which voice she speaks in, her character model, and a backup file for
-moving your chats to another device.
+**You.** Your key, which Claude model to use, your cast of characters, the
+shared voice settings, and a backup file for moving your chats to another
+device.
 
 ---
 
@@ -106,8 +111,8 @@ assets/
     tts.js               speech out: Piper, or browser voices as a fallback
     voice.js             speech in (recognition)
     avatar.js            VRM rendering, idle motion, blinking, lip sync
-    store.js             localStorage: settings, threads, scores
-    idb.js               IndexedDB, for the character model
+    store.js             localStorage: settings, characters, threads, scores
+    idb.js               IndexedDB, one model file per character
     ui.js                DOM helpers and a small Markdown renderer
     games/               one module per game
     vendor/              Anthropic SDK and three.js + three-vrm, bundled
@@ -164,6 +169,27 @@ stand behind were left off entirely.
 Long replies are split into sentences and pipelined — sentence N+1 is
 synthesised while N is still playing. On a Celeron NAS that is the difference
 between speaking in half a second and speaking in five.
+
+### Notes on the character
+
+Both VRM 0.x and VRM 1.0 models work. three-vrm remaps 0.x's blendshape names
+onto the 1.0 presets (`a` → `aa`, `joy` → `happy`, `sorrow` → `sad`), so the
+same lip-sync and expression code drives both; the one thing it does not remap
+is 0.x's "unknown" slot, which VRoid tends to export as a custom expression
+literally named `Surprised`, so expression lookup falls back to a
+case-insensitive match.
+
+Two things are measured from the model rather than assumed, because guessing
+gets both wrong:
+
+- **Which way the arms swing down.** Rotating the upper arm about its local Z
+  lowers it in VRM 1.0 and *raises* it in 0.x, because `rotateVRM0` turns the
+  rig 180°. The code tries both signs and keeps whichever actually puts the
+  hand lower.
+- **How tall she is.** The mesh bounding box is the wrong ruler — wings, tails
+  and floor-length hair inflate it, and a winged model ends up framed as a
+  distant full-body shot. Framing measures head bone to floor off the skeleton
+  instead.
 
 ### Notes on the API usage
 

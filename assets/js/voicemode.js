@@ -13,7 +13,7 @@ import { hasAvatar, moodOf } from './avatar.js';
 import { h, clear, toast, icon, ICONS } from './ui.js';
 
 function systemPrompt() {
-  const { name, persona } = store.get();
+  const { name, persona } = store.activeChar();
   const base = [
     `You are ${name || 'Companion'}, a personal AI companion, speaking out loud to someone through a microphone and speakers.`,
     'This is a spoken conversation, so keep it short: one to three sentences unless they ask for more. No lists, no markdown, no code — it all has to work read aloud.',
@@ -32,6 +32,10 @@ export function renderVoiceMode(view, actions) {
   const caption = h('div', { class: 'vm__caption' });
   const status = h('div', { class: 'vm__status' }, 'Tap to talk');
 
+  // Who you are talking to. Tapping cycles to the next character, which is
+  // faster than a menu when there are only a handful.
+  const whoChip = h('button', { class: 'vm__who', 'aria-label': 'Switch character' });
+
   const orb = h('button', {
     class: 'vm__orb',
     'aria-label': 'Start talking',
@@ -49,7 +53,7 @@ export function renderVoiceMode(view, actions) {
     h('div', { class: 'vm__hud' },
       caption,
       status,
-      h('div', { class: 'vm__controls' }, orb),
+      h('div', { class: 'vm__controls' }, whoChip, orb),
     ),
   ));
 
@@ -68,6 +72,43 @@ export function renderVoiceMode(view, actions) {
     handsFreeBtn.setAttribute('aria-pressed', String(next));
     toast(next ? 'Hands-free on — she will keep listening.' : 'Hands-free off.');
     if (next && !busy && !voice.isListening() && !tts.isSpeaking()) startListening();
+  });
+
+  /* ---------------------------------------------------------- who is here */
+
+  function paintWho() {
+    const c = store.activeChar();
+    const many = store.charList().length > 1;
+    // Native append() stringifies null, unlike h() — so filter first.
+    clear(whoChip).append(...[
+      h('span', { class: 'vm__whoMark' }, (c.name || '?')[0].toUpperCase()),
+      h('span', {}, c.name || 'Companion'),
+      many ? h('span', { class: 'vm__whoHint' }, 'switch') : null,
+    ].filter(Boolean));
+    whoChip.disabled = !many;
+    whoChip.title = many ? 'Switch to the next character' : 'Add another character under You';
+  }
+
+  whoChip.addEventListener('click', async () => {
+    const list = store.charList();
+    if (list.length < 2 || busy) return;
+
+    const i = list.findIndex((c) => c.id === store.get().activeCharacter);
+    const next = list[(i + 1) % list.length];
+
+    tts.shutUp();
+    voice.stopListening();
+    store.setActiveChar(next.id);
+
+    paintWho();
+    actions.refreshAll();
+
+    // Swap the model without tearing down the whole view.
+    avatar?.dispose();
+    avatar = null;
+    clear(stage).append(fallback);
+    clear(fallback);
+    await bringUpAvatar();
   });
 
   /* --------------------------------------------------------------- avatar */
@@ -228,6 +269,7 @@ export function renderVoiceMode(view, actions) {
     setStatus('Add an API key under “You” first.');
   }
 
+  paintWho();
   bringUpAvatar();
 
   return () => {

@@ -4,3 +4,6 @@ deploy/voices/*
 
 # A character model is yours to supply and is usually large and licensed.
 *.vrm
+
+# Character models are yours and often licence-restricted — never committed.
+characters/*.vrm

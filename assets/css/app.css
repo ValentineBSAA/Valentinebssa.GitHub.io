@@ -707,3 +707,80 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .filedrop:hover, .filedrop.is-over { border-color: var(--accent); background: var(--accent-soft); }
 .filedrop strong { color: var(--text); display: block; margin-bottom: 3px; }
 .filedrop small { font-size: 12.5px; }
+
+/* ============================================================
+   Characters
+   ============================================================ */
+
+.charlist { display: grid; gap: 8px; margin-bottom: 18px; }
+
+.charcard {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.charcard:hover { border-color: var(--accent); }
+.charcard.is-on { border-color: var(--accent); background: var(--accent-soft); }
+
+.charcard__mark {
+  flex: none;
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 14px;
+  background: var(--bg-3); color: var(--text-dim);
+}
+.charcard.is-on .charcard__mark { background: var(--accent); color: var(--accent-text); }
+.charcard--add .charcard__mark { background: transparent; border: 1px dashed var(--line); }
+
+.charcard__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.charcard__name { font-weight: 570; }
+.charcard__meta {
+  font-size: 12.5px; color: var(--text-mute);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.chareditor {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.chareditor__head {
+  font-size: 12px; font-weight: 650; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-mute);
+  margin-bottom: 14px;
+}
+
+/* Character chip in Voice mode */
+
+.vm__who {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px 7px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--text);
+  font-size: 13.5px; font-weight: 560;
+  cursor: pointer;
+  max-width: 46vw;
+}
+.vm__who:hover:not(:disabled) { border-color: var(--accent); }
+.vm__who:disabled { cursor: default; opacity: .8; }
+
+.vm__whoMark {
+  flex: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700;
+  background: var(--accent); color: var(--accent-text);
+}
+.vm__whoHint {
+  font-size: 11px; font-weight: 650;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-mute);
+}

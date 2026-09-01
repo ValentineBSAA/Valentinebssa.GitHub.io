@@ -111,19 +111,24 @@ Go to **You**:
 2. **Voice** — set the Piper server to exactly `/tts`, then hit *Connect*.
    Because nginx serves both the app and Piper, that relative path is all it
    needs. Voices you haven't downloaded show as *not installed*.
-3. **Her character** — drop in a `.vrm` file (see below).
+3. **Characters** — give her a name and a `.vrm` model (see below). Add as
+   many characters as you like; each keeps her own voice and personality.
 
 Then open **Voice** and tap the microphone.
 
 ---
 
-## The character model
+## Character models
 
 Voice mode renders a VRM model that blinks, breathes, and moves her mouth in time
-with the actual audio coming back from Piper.
+with the actual audio coming back from Piper. You can keep several characters and
+switch between them with the chip above the microphone — each has her own name,
+personality, voice and model.
 
-You need to supply the model — I can't ship one, since every model comes with its
-own licence.
+You supply the models. None are committed to this repository, deliberately: VRM
+files embed a licence, and plenty of them forbid redistribution. Publishing one
+in a public repo *is* redistribution, and this repo is served publicly by GitHub
+Pages.
 
 - **[VRoid Studio](https://vroid.com/en/studio)** — free, Windows/Mac. Make your
   own anime character and export `.vrm`. This is the easiest route, and the model
@@ -131,15 +136,34 @@ own licence.
 - **[VRoid Hub](https://hub.vroid.com/en)** — models other people have shared.
   Check the licence on each one; many allow personal use.
 
-Two ways to load it:
+Two ways to load one, per character, under *You → Characters*:
 
-- **Drop the file in** under *You → Her character*. It's stored in this browser's
-  IndexedDB, so it lives on that one device and needs adding again on each device.
-- **Serve it from the NAS**, which is better if you use more than one device.
-  Drop `character.vrm` next to `index.html` in the repo folder, then set the URL
-  field to `/character.vrm`. nginx already serves `.vrm` with a week-long cache.
+- **Drop the file in.** It's stored in this browser's IndexedDB, so it lives on
+  that one device and has to be added again on each device you use.
+- **Serve it from the NAS**, which is much better with more than one device and
+  is the reason `characters/` exists. Put your `.vrm` files there:
 
-**Framing** under the same settings card runs from a face shot to half body.
+  ```sh
+  mkdir -p /volume1/docker/companion/characters
+  cp ~/Downloads/*.vrm /volume1/docker/companion/characters/
+  ```
+
+  Then set each character's URL field to `/characters/hername.vrm`. nginx already
+  serves `.vrm` with the right type and a week-long cache, and `characters/*.vrm`
+  is gitignored so a `git pull` never touches them and they are never published.
+
+**Framing**, on each character, runs from a face shot to half body. Models with
+wings, tails or very long hair frame correctly — the camera measures her
+skeleton, not her silhouette.
+
+### A note on model licences
+
+Open any `.vrm` and it carries the terms its author chose: whether it can be
+redistributed, modified, or used commercially. VRoid Hub shows these on the
+download page, and VRoid Studio writes them in when you export your own. Serving
+a model from your own NAS on your own LAN is not redistribution; committing it to
+a public repo or putting it on a public web server is. Worth a look before you
+publish anything.
 
 ---
 

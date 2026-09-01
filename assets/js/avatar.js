@@ -10,7 +10,7 @@
  */
 
 import { store } from './store.js';
-import { loadAvatar } from './idb.js';
+import { loadModel } from './idb.js';
 import * as tts from './tts.js';
 
 let THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils;
@@ -22,28 +22,29 @@ async function loadLibs() {
   THREE = mod.THREE;
 }
 
-/** Where the model should come from, given current settings. */
-export async function avatarSource() {
-  const { avatarSource: src, avatarUrl } = store.get();
-  if (src === 'url' && avatarUrl) return { kind: 'url', value: avatarUrl };
-  if (src === 'file') {
-    const blob = await loadAvatar();
+/** Where a character's model should come from. */
+export async function avatarSource(character) {
+  const char = character || store.activeChar();
+  if (char.source === 'url' && char.url) return { kind: 'url', value: char.url };
+  if (char.source === 'file') {
+    const blob = await loadModel(char.id);
     if (blob) return { kind: 'blob', value: blob };
   }
   return null;
 }
 
-export function hasAvatar() {
-  const { avatarSource: src, avatarUrl } = store.get();
-  return src === 'file' || (src === 'url' && Boolean(avatarUrl));
+export function hasAvatar(character) {
+  const char = character || store.activeChar();
+  return char.source === 'file' || (char.source === 'url' && Boolean(char.url));
 }
 
 /**
  * Mount the avatar into `canvasHost`. Returns a handle with `setMood`,
  * `resize` and `dispose`. Throws if the model cannot be loaded.
  */
-export async function mountAvatar(canvasHost, { onProgress } = {}) {
-  const source = await avatarSource();
+export async function mountAvatar(canvasHost, { onProgress, character } = {}) {
+  const char = character || store.activeChar();
+  const source = await avatarSource(char);
   if (!source) throw new Error('No character model set. Add a .vrm under “You”.');
 
   onProgress?.('Loading 3D engine…');
@@ -109,24 +110,53 @@ export async function mountAvatar(canvasHost, { onProgress } = {}) {
   const head = bone('head');
   const neck = bone('neck');
   const chest = bone('chest') || bone('upperChest') || bone('spine');
-  const armL = bone('leftUpperArm');
-  const armR = bone('rightUpperArm');
 
-  // VRM rest pose is a T-pose. Rotating about Z swings the arm in the coronal
-  // plane; negative on the left and positive on the right brings both down.
-  if (armL) armL.rotation.z = -1.25;
-  if (armR) armR.rotation.z = 1.25;
+  // VRM rest pose is a T-pose, which reads as a scarecrow. Rotating the upper
+  // arm about its local Z swings it in the coronal plane — but which sign goes
+  // *down* flips between VRM 1.0 and 0.x, because rotateVRM0 turns the rig
+  // 180°. Rather than guess, try both and keep whichever actually lowers the
+  // hand. A Y rotation cannot change world height, so this reads true on both.
+  function relaxArm(upperName, tipNames) {
+    const upper = bone(upperName);
+    if (!upper) return;
+    const tip = tipNames.map(bone).find(Boolean) || upper;
+    const restY = upper.rotation.z;
+
+    const handHeight = (z) => {
+      upper.rotation.z = z;
+      // getWorldPosition refreshes ancestor matrices for us.
+      return tip.getWorldPosition(new THREE.Vector3()).y;
+    };
+
+    const swing = 1.25;
+    const down = handHeight(swing) < handHeight(-swing) ? swing : -swing;
+    upper.rotation.z = Number.isFinite(down) ? down : restY;
+  }
+
+  relaxArm('leftUpperArm', ['leftHand', 'leftLowerArm']);
+  relaxArm('rightUpperArm', ['rightHand', 'rightLowerArm']);
 
   /* ------------------------------------------------------------- framing */
 
-  // Models differ in scale and proportion, so every offset below is expressed
-  // as a fraction of the model's own height rather than in metres.
+  // Scale everything to the model's own proportions. The mesh bounding box is
+  // the wrong ruler — wings, tails, props and floor-length hair inflate it, and
+  // a model with wings would get framed as a distant full-body shot. The
+  // skeleton is stable, so measure head-bone to floor instead.
   vrm.scene.updateWorldMatrix(true, true);
   const box = new THREE.Box3().setFromObject(vrm.scene);
-  const height = Math.max(0.5, box.max.y - box.min.y);
-  const headY = head
-    ? head.getWorldPosition(new THREE.Vector3()).y
-    : box.min.y + height * 0.88;
+
+  const worldY = (b) => (b ? b.getWorldPosition(new THREE.Vector3()).y : null);
+  const headY = worldY(head) ?? box.min.y + (box.max.y - box.min.y) * 0.88;
+  const footY = Math.min(
+    worldY(bone('leftFoot')) ?? Infinity,
+    worldY(bone('rightFoot')) ?? Infinity,
+  );
+
+  // Head bone to floor is ~0.86 of a humanoid's total height; scale back up so
+  // `height` means roughly what a tape measure would say.
+  const spanToFloor = Number.isFinite(footY) ? headY - footY : null;
+  const height = Math.max(0.5, spanToFloor ? spanToFloor / 0.86 : box.max.y - box.min.y);
+
   // The head bone sits at the base of the skull, so aiming at it alone crops
   // the top of her head. Lift the target to roughly eye level.
   const faceY = headY + height * 0.06;
@@ -137,7 +167,7 @@ export async function mountAvatar(canvasHost, { onProgress } = {}) {
   const HUD_FRACTION = 0.22;
 
   function frame() {
-    const zoom = Math.max(1, Math.min(3, store.get().avatarZoom || 1));
+    const zoom = Math.max(1, Math.min(3, (store.get().characters[char.id] || char).zoom || 2));
     // zoom 1 = face, 2 = head and shoulders, 3 = half body.
     const subjectH = height * (0.22 + (zoom - 1) * 0.29);
 
@@ -191,8 +221,30 @@ export async function mountAvatar(canvasHost, { onProgress } = {}) {
   const MOODS = ['happy', 'sad', 'angry', 'relaxed', 'surprised'];
   const VISEMES = ['aa', 'ih', 'ou', 'ee', 'oh'];
 
+  // three-vrm remaps VRM 0.x presets to the 1.0 names (a -> aa, joy -> happy,
+  // sorrow -> sad, fun -> relaxed), so the canonical names work on both. What
+  // it does not remap is 0.x's "unknown" slot, which VRoid exports as a custom
+  // expression — often literally "Surprised". Fall back to a case-insensitive
+  // match so those still animate.
+  const expressionNames = expr ? Object.keys(expr.expressionMap ?? {}) : [];
+  const trackCache = new Map();
+
+  function trackFor(name) {
+    if (trackCache.has(name)) return trackCache.get(name);
+    let found = null;
+    if (expr?.getExpressionTrackName?.(name)) {
+      found = name;
+    } else {
+      const lower = name.toLowerCase();
+      found = expressionNames.find((n) => n.toLowerCase() === lower) ?? null;
+    }
+    trackCache.set(name, found);
+    return found;
+  }
+
   function setExpr(name, value) {
-    if (expr && expr.getExpressionTrackName?.(name)) expr.setValue(name, value);
+    const track = trackFor(name);
+    if (track) expr.setValue(track, value);
   }
 
   let stopped = false;

@@ -209,7 +209,8 @@ export async function speak(text, { onStart, onDone } = {}) {
 /* ---- Piper ---- */
 
 async function synthesize(text, signal) {
-  const { piperVoice, rate } = store.get();
+  const { rate } = store.get();
+  const piperVoice = store.activeChar().voice;
   const res = await fetch(`${piperURL()}/synthesize`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

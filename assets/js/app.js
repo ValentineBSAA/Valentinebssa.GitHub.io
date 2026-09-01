@@ -1,6 +1,6 @@
 /** Bootstrap, routing, and the Play tab. */
 
-import { store } from './store.js';
+import { store, pendingModelMigration } from './store.js';
 import { hasKey, describeError } from './ai.js';
 import { renderChat } from './chat.js';
 import { renderVoiceMode } from './voicemode.js';
@@ -73,8 +73,8 @@ function render() {
 }
 
 function refreshAll() {
-  $('#brandName').textContent = store.get().name || 'Companion';
-  document.title = store.get().name || 'Companion';
+  $('#brandName').textContent = store.activeChar().name || 'Companion';
+  document.title = store.activeChar().name || 'Companion';
   render();
 }
 
@@ -181,11 +181,19 @@ $('#newChatBtn').addEventListener('click', () => {
 
 window.addEventListener('hashchange', () => { closeNav(); render(); });
 
-$('#brandName').textContent = store.get().name || 'Companion';
-document.title = store.get().name || 'Companion';
+$('#brandName').textContent = store.activeChar().name || 'Companion';
+document.title = store.activeChar().name || 'Companion';
 
 if (!location.hash) location.hash = '#/talk';
 render();
+
+// A model saved under the old single-avatar layout moves onto the character
+// that inherited its settings. One-shot; a no-op on every later boot.
+if (pendingModelMigration) {
+  import('./idb.js')
+    .then((idb) => idb.migrateLegacyModel(pendingModelMigration))
+    .catch(() => { /* nothing stored, or no IndexedDB */ });
+}
 
 // Register the service worker so the shell keeps working with no connection.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

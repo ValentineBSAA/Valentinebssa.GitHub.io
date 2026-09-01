@@ -73,7 +73,7 @@ export default {
       const el = h('div', { class: `msg msg--${who === 'me' ? 'me' : 'ai'} ${cls}` },
         h('div', { class: 'msg__avatar' }, who === 'me' ? 'Y' : '🔮'),
         h('div', { class: 'msg__body' },
-          h('div', { class: 'msg__who' }, who === 'me' ? 'You' : (store.get().name || 'Companion')),
+          h('div', { class: 'msg__who' }, who === 'me' ? 'You' : (store.activeChar().name || 'Companion')),
           h('div', { class: 'msg__text' }, text),
         ),
       );
