@@ -3,6 +3,7 @@
 import { store } from './store.js';
 import { hasKey, describeError } from './ai.js';
 import { renderChat } from './chat.js';
+import { renderVoiceMode } from './voicemode.js';
 import { renderSettings } from './settings.js';
 import { GAMES, findGame } from './games/index.js';
 import { h, $, clear, toast, icon, ICONS } from './ui.js';
@@ -19,13 +20,13 @@ let teardown = null;
 
 /* ------------------------------------------------------------------ routes */
 
-const TITLES = { talk: 'Talk', play: 'Play', you: 'You', game: 'Play' };
+const TITLES = { talk: 'Talk', voice: 'Voice', play: 'Play', you: 'You', game: 'Play' };
 
 function currentRoute() {
   const hash = location.hash.replace(/^#\/?/, '');
   const [name, arg] = hash.split('/');
   if (name === 'game' && arg) return { name: 'game', arg };
-  return { name: ['talk', 'play', 'you'].includes(name) ? name : 'talk' };
+  return { name: ['talk', 'voice', 'play', 'you'].includes(name) ? name : 'talk' };
 }
 
 function go(name, arg) {
@@ -58,10 +59,11 @@ function render() {
     tab.setAttribute('aria-selected', String(active));
   });
 
-  threadPane.hidden = route.name !== 'talk';
+  threadPane.hidden = route.name !== 'talk' && route.name !== 'voice';
 
   switch (route.name) {
     case 'talk': teardown = renderChat(view, actions); break;
+    case 'voice': teardown = renderVoiceMode(view, actions); break;
     case 'play': teardown = renderArcade(view); break;
     case 'game': teardown = renderGame(view, route.arg); break;
     case 'you': teardown = renderSettings(view, actions); break;

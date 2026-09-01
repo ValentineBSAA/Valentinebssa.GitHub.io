@@ -15,6 +15,13 @@ down the left. You can type, or tap the microphone and just speak — replies ca
 be read back aloud, and *hands-free* mode reopens the mic after every answer, so
 you can have an actual back-and-forth without touching the screen.
 
+**Voice.** A full-screen mode with nothing to type: a 3D anime character who
+blinks, breathes, and moves her mouth in time with the actual audio waveform.
+Speech is [Piper](https://github.com/rhasspy/piper) running on your own hardware,
+so nothing you say is sent anywhere but Anthropic. Every voice offered is female.
+It shares the same conversation as Talk, so you can start typing and finish out
+loud.
+
 **Play.** Five games where the AI is genuinely the other player:
 
 | Game | What happens |
@@ -26,8 +33,8 @@ you can have an actual back-and-forth without touching the screen.
 | **Story Quest** | An improvised choose-your-own adventure that reacts to your choices and lands a real ending. |
 
 **You.** Your key, which model to use, what your companion is called and how it
-talks, voice and speed, and a backup file for moving your chats to another
-device.
+talks, which voice she speaks in, her character model, and a backup file for
+moving your chats to another device.
 
 ---
 
@@ -40,6 +47,11 @@ device.
 3. Start talking.
 
 Tic-Tac-Toe and Word Guess work before you do any of that.
+
+For Voice mode you also need two things, both covered in
+**[deploy/SETUP-NAS.md](deploy/SETUP-NAS.md)**: a Piper server (your NAS) and a
+`.vrm` character model (yours to supply). Without them, Voice mode falls back to
+the browser's own female voices and says so.
 
 ### Install it as an app
 
@@ -88,13 +100,21 @@ assets/
   js/
     app.js               routing, navigation, the Play grid
     chat.js              the Talk view
+    voicemode.js         the Voice view
     settings.js          the You view
     ai.js                Anthropic client — streaming, JSON turns, error text
+    tts.js               speech out: Piper, or browser voices as a fallback
+    voice.js             speech in (recognition)
+    avatar.js            VRM rendering, idle motion, blinking, lip sync
     store.js             localStorage: settings, threads, scores
-    voice.js             speech recognition and synthesis
+    idb.js               IndexedDB, for the character model
     ui.js                DOM helpers and a small Markdown renderer
     games/               one module per game
-    vendor/              the Anthropic SDK, bundled for the browser
+    vendor/              Anthropic SDK and three.js + three-vrm, bundled
+deploy/
+  docker-compose.yml     nginx + Piper, for the NAS
+  download-voices.sh     fetches the female voices
+  SETUP-NAS.md           DS418+ walkthrough
 ```
 
 **The SDK is vendored, not loaded from a CDN.** `assets/js/vendor/anthropic-sdk.esm.js`
@@ -113,6 +133,37 @@ npx esbuild entry.js --bundle --format=esm --platform=browser \
 `--external:node:*` leaves the SDK's Node-only credential lookups as unreachable
 dynamic imports; the browser never evaluates them because the key is passed in
 directly.
+
+**three.js and three-vrm are vendored the same way** into
+`assets/js/vendor/three-vrm.esm.js` (~900 KB). `avatar.js` imports it with a
+dynamic `import()`, so Talk and the games never download it — only Voice mode
+pays that cost, and only when a character is actually set.
+
+```bash
+npm install three@0.185.1 @pixiv/three-vrm@3.5.5 esbuild
+cat > entry.js <<'EOF'
+export * as THREE from 'three';
+export { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+export { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+EOF
+npx esbuild entry.js --bundle --format=esm --platform=browser \
+  --target=es2022 --minify --outfile=assets/js/vendor/three-vrm.esm.js
+```
+
+### Notes on the voice
+
+Piper publishes no gender metadata, so the female-only list in `tts.js` is
+curated by hand. Where I could, I checked it rather than trusting the name:
+synthesise a fixed phrase, measure median fundamental frequency, and compare
+against known male voices. Amy 195 Hz, Lessac 193 Hz, southern_english_female
+195 Hz, Kathleen 152 Hz — against Alan 95 Hz, Danny 117 Hz and Ryan 137 Hz as
+controls. Those are marked *verified* in the UI. The rest are on the list
+because their source dataset has a documented female speaker. Voices I could not
+stand behind were left off entirely.
+
+Long replies are split into sentences and pipelined — sentence N+1 is
+synthesised while N is still playing. On a Celeron NAS that is the difference
+between speaking in half a second and speaking in five.
 
 ### Notes on the API usage
 
@@ -136,9 +187,36 @@ Anything that serves static files works. There's nothing to compile.
 
 ---
 
+## Running it on a NAS
+
+`deploy/` holds a two-container stack — nginx serving the site, Piper doing
+speech — behind a single port. Written for a Synology DS418+, but nothing in it
+is Synology-specific beyond the walkthrough.
+
+```bash
+cd deploy
+./download-voices.sh            # a female voice, ~63 MB
+docker compose up -d --build
+```
+
+Then open `http://<nas-ip>:8080` and set the Piper server to `/tts` under
+**You → Voice**. Full walkthrough, including the DS418+'s CPU limits and the
+HTTPS-vs-microphone gotcha: **[deploy/SETUP-NAS.md](deploy/SETUP-NAS.md)**.
+
+You can also keep the app on GitHub Pages and point it at your NAS for voice
+only — the nginx config sends the CORS headers for it. That path needs HTTPS on
+the NAS, because an HTTPS page cannot call a plain-HTTP server.
+
+---
+
 ## Browser support
 
 Chat, games, storage and installation work anywhere current. Voice is thinner:
-speech synthesis is near-universal, but speech *recognition* is Chrome, Edge and
-Safari only — elsewhere the microphone button simply doesn't appear, and typing
-works as it always did.
+
+- **Speech output** works everywhere. With Piper it is the same on every browser;
+  without it, quality depends on the voices the OS ships.
+- **Speech input** is Chrome, Edge and Safari only — Firefox has no speech
+  recognition. Elsewhere the microphone simply doesn't appear and typing works
+  as it always did. It also needs a **secure context**: HTTPS or localhost. Over
+  plain HTTP to a NAS IP you get voice out but not voice in.
+- **The character** needs WebGL2, which is everything current.

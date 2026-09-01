@@ -1,0 +1,6 @@
+# Downloaded Piper voice models — fetched by deploy/download-voices.sh
+deploy/voices/*
+!deploy/voices/.gitkeep
+
+# A character model is yours to supply and is usually large and licensed.
+*.vrm

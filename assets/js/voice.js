@@ -1,19 +1,15 @@
 /**
- * Voice in and out, using what the browser already ships.
+ * Speech input, using what the browser already ships.
  *
- * Speech recognition is Chrome/Edge/Safari only (webkitSpeechRecognition).
- * Speech synthesis is close to universal. Both degrade to "button hidden"
- * rather than breaking the page.
+ * Recognition is Chrome/Edge/Safari only (webkitSpeechRecognition); elsewhere
+ * `canListen` is false and the mic controls simply never appear.
+ *
+ * Speech *output* lives in tts.js, which also handles the Piper engine.
  */
-
-import { store } from './store.js';
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 export const canListen = Boolean(SR);
-export const canSpeak = typeof speechSynthesis !== 'undefined';
-
-/* ---------------------------------------------------------------- listening */
 
 let recognition = null;
 let listening = false;
@@ -76,79 +72,3 @@ export function stopListening() {
 }
 
 export function isListening() { return listening; }
-
-/* ---------------------------------------------------------------- speaking */
-
-let voices = [];
-
-function loadVoices() {
-  if (!canSpeak) return;
-  voices = speechSynthesis.getVoices();
-}
-if (canSpeak) {
-  loadVoices();
-  speechSynthesis.addEventListener('voiceschanged', loadVoices);
-}
-
-export function listVoices() { return voices; }
-
-/**
- * Read text aloud. Long replies are split on sentence boundaries because
- * some engines silently truncate anything much past ~200 characters.
- */
-export function speak(text, { onDone } = {}) {
-  if (!canSpeak) { onDone?.(); return; }
-  const { voiceURI, rate } = store.get();
-
-  shutUp();
-
-  const clean = stripMarkup(text).trim();
-  if (!clean) { onDone?.(); return; }
-
-  const parts = chunk(clean);
-  const voice = voices.find((v) => v.voiceURI === voiceURI) || null;
-
-  parts.forEach((part, i) => {
-    const u = new SpeechSynthesisUtterance(part);
-    if (voice) { u.voice = voice; u.lang = voice.lang; }
-    u.rate = rate || 1;
-    if (i === parts.length - 1) {
-      u.onend = () => onDone?.();
-      u.onerror = () => onDone?.();
-    }
-    speechSynthesis.speak(u);
-  });
-}
-
-export function shutUp() {
-  if (canSpeak) { try { speechSynthesis.cancel(); } catch { /* noop */ } }
-}
-
-export function isSpeaking() {
-  return canSpeak && speechSynthesis.speaking;
-}
-
-/** Code blocks and asterisks read terribly out loud. */
-function stripMarkup(text) {
-  return text
-    .replace(/```[\s\S]*?```/g, ' (code block) ')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/(^|\s)\*([^*]+)\*/g, '$1$2')
-    .replace(/^\s*[-*]\s+/gm, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-}
-
-function chunk(text, limit = 190) {
-  const sentences = text.match(/[^.!?\n]+[.!?]*\s*/g) || [text];
-  const out = [];
-  let buf = '';
-  for (const s of sentences) {
-    if ((buf + s).length > limit && buf) { out.push(buf.trim()); buf = ''; }
-    // A single sentence longer than the limit still has to go out whole.
-    buf += s;
-  }
-  if (buf.trim()) out.push(buf.trim());
-  return out;
-}

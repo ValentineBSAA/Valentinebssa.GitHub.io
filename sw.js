@@ -5,7 +5,7 @@
  * and a cached reply would be worse than no reply.
  */
 
-const VERSION = 'companion-v1';
+const VERSION = 'companion-v2';
 
 const SHELL = [
   './',
@@ -15,6 +15,10 @@ const SHELL = [
   './assets/js/app.js',
   './assets/js/ai.js',
   './assets/js/chat.js',
+  './assets/js/voicemode.js',
+  './assets/js/avatar.js',
+  './assets/js/tts.js',
+  './assets/js/idb.js',
   './assets/js/settings.js',
   './assets/js/store.js',
   './assets/js/ui.js',
@@ -26,6 +30,7 @@ const SHELL = [
   './assets/js/games/trivia.js',
   './assets/js/games/story.js',
   './assets/js/vendor/anthropic-sdk.esm.js',
+  './assets/js/vendor/three-vrm.esm.js',
   './assets/icons/icon.svg',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',

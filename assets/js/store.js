@@ -12,8 +12,17 @@ const DEFAULTS = {
   persona: '',
   speak: false,        // read replies aloud
   handsFree: false,    // re-open the mic after each reply
-  voiceURI: '',
+  voiceURI: '',        // browser-engine voice, when no Piper server is set
   rate: 1,
+
+  piperUrl: '',                       // e.g. http://nas.local:8080/tts — blank uses browser voices
+  piperVoice: 'en_US-amy-medium',     // must be one of tts.js PIPER_VOICES
+
+  avatarSource: 'none',               // 'none' | 'file' (in IndexedDB) | 'url'
+  avatarUrl: '',                      // .vrm URL when avatarSource === 'url'
+  avatarFileName: '',                 // shown in settings when a file is stored
+  avatarZoom: 1,                      // framing: 1 = head and shoulders
+
   threads: {},         // id -> { id, title, created, updated, messages: [{role, content}] }
   activeThread: null,
   scores: {},          // gameId -> arbitrary per-game record

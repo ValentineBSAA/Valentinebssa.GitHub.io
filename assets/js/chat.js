@@ -3,6 +3,7 @@
 import { store } from './store.js';
 import { streamReply, describeError, hasKey } from './ai.js';
 import * as voice from './voice.js';
+import * as tts from './tts.js';
 import { h, clear, toast, renderMarkdown, autoGrow, icon, ICONS, thinkingDots } from './ui.js';
 
 function systemPrompt() {
@@ -54,12 +55,14 @@ export function renderChat(view, actions) {
     'aria-pressed': String(speakOn),
   }, icon(speakOn ? ICONS.speaker : ICONS.mute));
 
-  speakBtn.addEventListener('click', () => {
+  speakBtn.addEventListener('click', async () => {
     const next = !store.get().speak;
     store.set({ speak: next });
     speakBtn.setAttribute('aria-pressed', String(next));
     clear(speakBtn).append(icon(next ? ICONS.speaker : ICONS.mute));
-    if (!next) voice.shutUp();
+    // Unlock audio inside the click, or the first reply plays to nobody.
+    if (next) await tts.unlockAudio();
+    else tts.shutUp();
   });
 
   const thoughtfulBtn = h('button', {
@@ -76,7 +79,7 @@ export function renderChat(view, actions) {
     toast(thoughtful ? 'Thoughtful mode on — replies will take longer.' : 'Back to quick replies.');
   });
 
-  if (voice.canSpeak) actions.append(speakBtn);
+  if (tts.canBrowserSpeak || tts.piperURL()) actions.append(speakBtn);
   actions.append(thoughtfulBtn);
 
   /* ------------------------------------------------------------- rendering */
@@ -144,7 +147,7 @@ export function renderChat(view, actions) {
     const message = text.trim();
     if (!message || busy) return;
 
-    voice.shutUp();
+    tts.shutUp();
     if (!thread.messages.length) clear(log);
 
     thread.messages.push({ role: 'user', content: message });
@@ -188,7 +191,7 @@ export function renderChat(view, actions) {
       toBottom();
 
       if (store.get().speak) {
-        voice.speak(full, { onDone: () => { if (store.get().handsFree) startListening(); } });
+        tts.speak(full, { onDone: () => { if (store.get().handsFree) startListening(); } });
       } else if (store.get().handsFree) {
         startListening();
       }
@@ -252,9 +255,10 @@ export function renderChat(view, actions) {
     }
   }
 
-  micBtn.addEventListener('click', () => {
+  micBtn.addEventListener('click', async () => {
     if (voice.isListening()) { voice.stopListening(); return; }
-    voice.shutUp();
+    await tts.unlockAudio();
+    tts.shutUp();
     startListening();
   });
 
@@ -281,6 +285,6 @@ export function renderChat(view, actions) {
   return () => {
     controller?.abort();
     voice.stopListening();
-    voice.shutUp();
+    tts.shutUp();
   };
 }
