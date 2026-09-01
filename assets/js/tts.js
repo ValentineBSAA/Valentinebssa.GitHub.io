@@ -55,11 +55,34 @@ const FEMALE_NAME_RE = new RegExp([
 
 const MALE_NAME_RE = /\b(male|man)\b|daniel|alex|fred|thomas|jorge|juan|diego|luca|xander|rishi|aaron|arthur|gordon|oliver|reed|rocko|david|mark|george|james|ryan|guy|william|liam/i;
 
-export function femaleBrowserVoices() {
+export function browserVoices() {
   if (typeof speechSynthesis === 'undefined') return [];
-  return speechSynthesis.getVoices().filter(
+  return speechSynthesis.getVoices();
+}
+
+export function femaleBrowserVoices() {
+  return browserVoices().filter(
     (v) => FEMALE_NAME_RE.test(v.name) && !MALE_NAME_RE.test(v.name),
   );
+}
+
+/**
+ * What to offer in the picker.
+ *
+ * Some platforms name their voices after a person, which is what the filter
+ * above keys on. Android does not — Chrome there reports "English (United
+ * States)" and nothing else, so the female filter finds nothing and the picker
+ * would be an empty dead end. In that case, offer every voice for the user's
+ * own language and let them choose by ear, saying plainly why.
+ */
+export function pickableBrowserVoices() {
+  const female = femaleBrowserVoices();
+  if (female.length) return { voices: female, genderKnown: true };
+
+  const all = browserVoices();
+  const lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  const mine = all.filter((v) => v.lang?.toLowerCase().startsWith(lang));
+  return { voices: (mine.length ? mine : all), genderKnown: false };
 }
 
 export const canBrowserSpeak = typeof speechSynthesis !== 'undefined';
@@ -280,8 +303,11 @@ function speakBrowser(text, myGen, onStart) {
 
   return new Promise((resolve) => {
     const { voiceURI, rate } = store.get();
-    const pool = femaleBrowserVoices();
-    const voice = pool.find((v) => v.voiceURI === voiceURI) || pool[0] || null;
+    // Honour an explicit choice from any voice the platform offers; otherwise
+    // prefer one we can actually identify as female.
+    const voice = browserVoices().find((v) => v.voiceURI === voiceURI)
+      || femaleBrowserVoices()[0]
+      || null;
 
     const parts = chunk(text, 190);
     let started = false;

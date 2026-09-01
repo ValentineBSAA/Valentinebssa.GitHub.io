@@ -336,11 +336,15 @@ export function renderSettings(view, actions) {
     const c = store.activeChar();
 
     if (!store.get().piperUrl) {
-      const pool = tts.femaleBrowserVoices();
+      const { voices: pool, genderKnown } = tts.pickableBrowserVoices();
       if (!pool.length) {
         voiceList.append(h('p', { class: 'hint', style: 'margin:0' },
-          'No female voices found in this browser. Point at a Piper server above for a proper voice.'));
+          'This browser reports no speech voices at all. Point at a Piper server above and she gets a proper one.'));
         return;
+      }
+      if (!genderKnown) {
+        voiceList.append(h('p', { class: 'hint', style: 'margin:0 0 4px' },
+          'This browser does not say which of its voices are female — Android is the usual culprit. Pick by ear, or use Piper above, where every voice on the list is female.'));
       }
       for (const v of pool) {
         const on = v.voiceURI === store.get().voiceURI || (!store.get().voiceURI && v === pool[0]);
